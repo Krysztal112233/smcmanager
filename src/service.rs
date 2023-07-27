@@ -4,7 +4,7 @@ use std::{
     fs::File,
     io::{BufReader, Read},
     path::PathBuf,
-    process::{ExitCode, ExitStatus},
+    process::ExitCode,
 };
 
 use crate::{executor::Executor, manifest::ManifestContent};

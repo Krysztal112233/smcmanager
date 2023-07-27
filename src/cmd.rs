@@ -1,9 +1,14 @@
-use std::fs::{self, File};
+use std::{
+    fs::{self, File},
+    io::{BufWriter, Write},
+    process::Command,
+};
 
 use clap::ArgMatches;
 use prettytable::{row, Table};
 
 use crate::{
+    manifest::ManifestContent,
     service::{ServiceInformation, ServiceStatus, StartResult},
     work::WorkDirectory,
 };
@@ -119,10 +124,27 @@ impl CMD {
 
                         let file = File::create(&path).expect("Cannot create file");
 
-                        // file.
-                        // let is_ok=
+                        let mut name = path.clone();
+                        name.pop();
+                        let name = name
+                            .into_iter()
+                            .collect::<Vec<_>>()
+                            .last()
+                            .unwrap()
+                            .to_str()
+                            .unwrap()
+                            .to_string();
 
-                        (path.clone(), file.is_ok())
+                        let default = ManifestContent {
+                            name,
+                            ..Default::default()
+                        };
+                        let default =
+                            toml::to_string_pretty(&default).expect("Cannot serialized into toml");
+
+                        let buffer = BufWriter::new(file).write_all(default.as_bytes());
+
+                        (path.clone(), buffer.is_ok())
                     })
                     .collect::<Vec<_>>();
 
@@ -177,7 +199,23 @@ impl CMD {
     }
     pub async fn create(self) {}
     pub async fn delete(self) {}
-    pub async fn init(self) {}
+    pub async fn init(self) {
+        let mut cmd = Command::new("bash");
+
+        let cmd = cmd
+            .arg("-c")
+            .arg("git clone https://github.com/OakMemory/smcmanager-templates templates")
+            .current_dir(self.workingdir);
+
+        let output = cmd.output().expect("Cannot get output");
+
+        if !output.status.success() {
+            print!(
+                "Initialize templates failed: {}",
+                String::from_utf8(output.stderr).expect("Cannot into string")
+            )
+        }
+    }
 
     fn print(self, v: Vec<ServiceInformation>) {
         if !self.quite {

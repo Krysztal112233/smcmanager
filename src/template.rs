@@ -1,6 +1,6 @@
 use serde::Serialize;
 use std::{
-    fs::File,
+    fs::{self, File},
     io::{BufReader, Read},
     path::PathBuf,
 };
@@ -19,11 +19,8 @@ impl TemplateInfomation {
     where
         T: Into<PathBuf>,
     {
-        let path: PathBuf = path.into();
-        let file_reader = BufReader::new(File::open(path.clone())?);
-
-        let mut file_content = String::new();
-        file_reader.buffer().read_to_string(&mut file_content)?;
+        let path = path.into();
+        let file_content = fs::read_to_string(&path)?;
 
         let template = toml::from_str::<ManifestContent>(&file_content)
             .expect("Cannot deserialized into object");

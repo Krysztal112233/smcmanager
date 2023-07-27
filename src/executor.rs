@@ -10,6 +10,7 @@ use std::{
 pub struct Executor {
     executable: PathBuf,
     args: Vec<String>,
+    current_dir: PathBuf,
 }
 
 #[allow(unused)]
@@ -22,6 +23,7 @@ impl Executor {
         Self {
             executable: executable.into(),
             args: args.into_iter().map(Into::<String>::into).collect(),
+            ..Default::default()
         }
     }
 
@@ -30,10 +32,18 @@ impl Executor {
         args.append(&mut self.args.clone());
 
         Ok(Command::new("sh")
+            .current_dir(self.current_dir)
             .arg("-c")
             .arg(args.join(" "))
             .stdout(Stdio::piped())
             .spawn()?)
+    }
+
+    pub fn current_dir<T>(&mut self, dir: T)
+    where
+        T: Into<PathBuf> + Clone,
+    {
+        self.current_dir = dir.into()
     }
 
     pub async fn output_reader(mut child: Child) -> (BufReader<ChildStdout>, Child) {

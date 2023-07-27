@@ -7,7 +7,7 @@ pub struct ManifestContent {
     pub enable: Option<bool>,
     pub scripts: ManifestContentScripts,
     #[serde(skip)]
-    vars: Vec<String>,
+    pub vars: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
