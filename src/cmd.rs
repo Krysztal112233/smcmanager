@@ -63,6 +63,10 @@ impl CMD {
 
         let services = start_all_services(services).await;
 
+        if self.quite {
+            return;
+        }
+
         let result = if self.json {
             let services: Vec<_> = services
                 .into_iter()
@@ -94,7 +98,59 @@ impl CMD {
 
         print!("{}", result);
     }
-    pub async fn stop(self) {}
+    pub async fn stop(self) {
+        let services = self
+            .matches
+            .try_get_many::<String>("service")
+            .unwrap_or_default()
+            .expect("Cannot get service list")
+            .map(|ele| ele.to_string())
+            .collect::<Vec<String>>();
+
+        let workdir = WorkDirectory::new(self.workingdir);
+
+        let mut workdir_services = workdir.clone().services();
+
+        workdir_services.retain(|ele| services.contains(&ele.name));
+
+        let mut vec = vec![];
+        for ele in workdir_services {
+            vec.push((ele.clone(), ele.stop().await));
+        }
+
+        if self.quite {
+            return;
+        }
+
+        let vec = vec
+            .into_iter()
+            .map(|ele| {
+                (
+                    ele.0.name,
+                    if ele.1.is_err() {
+                        ele.1.unwrap_err().to_string()
+                    } else {
+                        ele.1.unwrap().to_string()
+                    },
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let result = if self.json {
+            serde_json::to_string_pretty(&vec).expect("Cannot serialized into json")
+        } else {
+            let mut table = Table::new();
+            table.set_titles(row!["Service Name", "Stop Result"]);
+            table.extend(
+                vec.into_iter()
+                    .map(|ele| row![ele.0, ele.1])
+                    .collect::<Vec<_>>(),
+            );
+            table.to_string()
+        };
+
+        print!("{}", result)
+    }
     pub async fn status(self) {}
     pub async fn template(self) {
         let workingdir = WorkDirectory::new(self.workingdir);
