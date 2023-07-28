@@ -151,7 +151,56 @@ impl CMD {
 
         print!("{}", result)
     }
-    pub async fn status(self) {}
+
+    pub async fn status(self) {
+        let services = self
+            .matches
+            .try_get_many::<String>("service")
+            .unwrap_or_default();
+
+        let services = if services.is_none() {
+            vec![]
+        } else {
+            services
+                .unwrap()
+                .map(|ele| ele.to_string())
+                .collect::<Vec<String>>()
+        };
+        
+        let workingdir = WorkDirectory::new(self.workingdir);
+
+        let workingdir_service = if services.len() == 0 {
+            workingdir.services().clone()
+        } else {
+            let mut v = workingdir.services().clone().clone();
+            v.retain(|ele| services.contains(&ele.name));
+            v
+        };
+
+        let mut vec = vec![];
+        for ele in workingdir_service {
+            vec.push((
+                ele.clone().name,
+                ele.update_status().await.status.to_string(),
+            ))
+        }
+
+        let result = if self.json {
+            serde_json::to_string_pretty(&vec).expect("Cannot serialized into json")
+        } else {
+            let mut table = Table::new();
+            table.set_titles(row!["Serivice Name", "Service Status"]);
+            let vec = vec
+                .into_iter()
+                .map(|(name, status)| row![name, status])
+                .collect::<Vec<_>>();
+            table.extend(vec);
+            table.to_string()
+        };
+
+        print!("{}", result)
+    }
+
     pub async fn template(self) {
         let workingdir = WorkDirectory::new(self.workingdir);
 
