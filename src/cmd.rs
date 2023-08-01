@@ -166,7 +166,7 @@ impl CMD {
                 .map(|ele| ele.to_string())
                 .collect::<Vec<String>>()
         };
-        
+
         let workingdir = WorkDirectory::new(self.workingdir);
 
         let workingdir_service = if services.len() == 0 {
@@ -298,7 +298,52 @@ impl CMD {
                     println!("{}", result)
                 }
             }
-            Some(("delete", matches)) => {}
+            Some(("delete", matches)) => {
+                let name = matches
+                    .try_get_many::<String>("name")
+                    .unwrap_or_default()
+                    .expect("Cannot get name")
+                    .map(|ele| ele.to_string())
+                    .collect::<Vec<String>>();
+                let mut tem = workingdir.templates().clone();
+
+                tem.retain(|ele| name.contains(&ele.name));
+                let action_res = tem
+                    .into_iter()
+                    .map(|ele| {
+                        let mut path = ele.path.clone();
+                        path.pop();
+                        (ele.name, path)
+                    })
+                    .map(|ele| {
+                        if fs::remove_dir_all(ele.1).is_err() {
+                            (ele.0, false)
+                        } else {
+                            (ele.0, true)
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                if self.quite {
+                    return;
+                }
+
+                let r = if self.json {
+                    serde_json::to_string_pretty(&action_res).expect("Cannot serialized into json")
+                } else {
+                    let mut table = Table::new();
+                    table.set_titles(row!["Template Name", "Action Result"]);
+                    let r = action_res
+                        .into_iter()
+                        .map(|ele| row![ele.0, ele.1])
+                        .collect::<Vec<_>>();
+
+                    table.extend(r);
+                    table.to_string()
+                };
+
+                println!("{}", r)
+            }
             _ => {}
         }
     }
