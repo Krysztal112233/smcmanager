@@ -56,6 +56,7 @@ fn cmd() -> Command {
         .subcommand(
             Command::new("template")
                 .about("Templates management.")
+                .arg_required_else_help(true)
                 .subcommand(Command::new("list").about("List all templates."))
                 .subcommand(
                     Command::new("create")
