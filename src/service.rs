@@ -93,9 +93,16 @@ impl ServiceInformation {
         return Self { status, ..self };
     }
 
-    pub async fn start(self) -> anyhow::Result<StartResult> {
+    pub async fn start<T>(self, current_dir: T) -> anyhow::Result<StartResult>
+    where
+        T: Into<PathBuf> + Clone,
+    {
         if let Some(script) = self.manifest.scripts.pre_start {
-            let mut child = Executor::from(script).exec().await?;
+            let mut child = Executor::from(script);
+            child.current_dir(current_dir);
+
+            let mut child = child.exec().await?;
+
             let ecode = child.wait()?;
             if !&child.wait()?.success() {
                 return Ok(StartResult::PreStartFailed(
@@ -138,6 +145,7 @@ impl ServiceInformation {
 
         Ok(StopResult::Success)
     }
+
     pub async fn health_check(self) -> anyhow::Result<ExitCode> {
         todo!()
     }

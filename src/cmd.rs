@@ -40,7 +40,7 @@ impl CMD {
 
         let workingdir = WorkDirectory::new(&self.workingdir);
 
-        let services = filt_services(arg_services, workingdir.services());
+        let services = filt_services(arg_services, workingdir.clone().services());
 
         let services = update_all_status(services)
             .await
@@ -48,7 +48,7 @@ impl CMD {
             .filter(|ele| ele.status != ServiceStatus::Start)
             .collect();
 
-        let services = start_all_services(services).await;
+        let services = start_all_services(services, workingdir.data_directory()).await;
 
         if self.quite {
             return;
@@ -354,28 +354,30 @@ impl CMD {
 
         let template = templates.unwrap();
 
-        let mut template_path = template.path.clone();
+        let template_path = template.path.clone();
 
-        template_path.pop();
+        // template_path.pop();
 
         let mut service_path = workdir.clone().service_directory().clone();
         service_path.push(service_name);
 
         fs::create_dir_all(&service_path).expect("Cannot create directory.");
 
-        let strip = |p: PathBuf| {
-            let mut service_d = workdir.clone().service_directory();
-            service_d.pop();
+        let strip = |template_path: PathBuf| {
+            let mut root = workdir.clone().service_directory();
+            root.pop();
 
-            let p = PathBuf::from(p.strip_prefix(service_d).unwrap());
+            let p = PathBuf::from(template_path.strip_prefix(root).unwrap());
             let p = PathBuf::from(p.strip_prefix("templates").unwrap());
 
             let mut p = p
                 .into_iter()
                 .map(|ele| ele.to_str().unwrap().to_string())
                 .collect::<Vec<_>>();
-            p.remove(0);
 
+            if p.len() != 0 {
+                p.remove(0);
+            }
             let mut path = PathBuf::new();
             path.extend(p);
 
@@ -517,9 +519,13 @@ async fn update_all_status(v: Vec<ServiceInformation>) -> Vec<ServiceInformation
     vec
 }
 
-async fn start_all_services(
+async fn start_all_services<T>(
     v: Vec<ServiceInformation>,
-) -> Vec<(ServiceInformation, Result<StartResult, anyhow::Error>)> {
+    data_dir: T,
+) -> Vec<(ServiceInformation, Result<StartResult, anyhow::Error>)>
+where
+    T: Into<PathBuf> + Clone,
+{
     let before = v.clone();
 
     let mut after = vec![];
@@ -530,10 +536,15 @@ async fn start_all_services(
 
     let mut vec = vec![];
 
+    let data_dir: PathBuf = data_dir.into();
+
     for index in 0..before.len() {
+        let mut data_dir = data_dir.clone();
+        data_dir.push(after.get(index).unwrap().clone().name);
+
         vec.push((
             after.get(index).unwrap().clone(),
-            after.get(index).unwrap().clone().start().await,
+            after.get(index).unwrap().clone().start(data_dir).await,
         ))
     }
 
