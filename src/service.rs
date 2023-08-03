@@ -42,14 +42,22 @@ impl ServiceInformation {
     where
         T: Into<PathBuf> + Clone,
     {
-        let path: PathBuf = path.into();
+        let mut path: PathBuf = path.into();
 
         let file_content = fs::read_to_string(&path)?;
-
         let manifest = toml::from_str::<ManifestContent>(&file_content)?;
 
+        path.pop();
+
         Ok(ServiceInformation {
-            name: manifest.name.clone(),
+            name: path
+                .into_iter()
+                .last()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string(),
+            manifest,
             ..Default::default()
         })
     }

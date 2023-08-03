@@ -23,23 +23,9 @@ pub struct CMD {
 
 impl CMD {
     pub async fn list(self) {
-        let services = self
-            .matches
-            .try_get_many::<String>("services")
-            .unwrap_or_default();
-
         let workdir = WorkDirectory::new(&self.workingdir);
 
-        let services = if services.is_none() {
-            workdir.services().clone()
-        } else {
-            let arg_services = services
-                .clone()
-                .unwrap()
-                .map(|ele| ele.to_string())
-                .collect::<Vec<String>>();
-            filt_services(arg_services, workdir.services().clone())
-        };
+        let services = workdir.services().clone();
 
         self.print(services);
     }
@@ -232,17 +218,8 @@ impl CMD {
 
                         let mut name = path.clone();
                         name.pop();
-                        let name = name
-                            .into_iter()
-                            .collect::<Vec<_>>()
-                            .last()
-                            .unwrap()
-                            .to_str()
-                            .unwrap()
-                            .to_string();
 
                         let default = ManifestContent {
-                            name,
                             ..Default::default()
                         };
                         let default =

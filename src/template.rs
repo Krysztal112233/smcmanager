@@ -18,14 +18,22 @@ impl TemplateInfomation {
     where
         T: Into<PathBuf>,
     {
-        let path = path.into();
+        let mut path = path.into();
         let file_content = fs::read_to_string(&path)?;
 
         let template = toml::from_str::<ManifestContent>(&file_content)
             .expect("Cannot deserialized into object");
 
+        path.pop();
+
         Ok(TemplateInfomation {
-            name: template.name.clone(),
+            name: path
+                .into_iter()
+                .last()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string(),
             path,
             template,
             ..Default::default()

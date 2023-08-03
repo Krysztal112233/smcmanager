@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ManifestContent {
-    pub name: String,
     pub enable: Option<bool>,
     pub scripts: ManifestContentScripts,
     #[serde(skip)]
