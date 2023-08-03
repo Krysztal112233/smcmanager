@@ -10,6 +10,7 @@ homepage = "github.com/OakMemory/SMCManager"
 anyhow = "1.0.72"
 chrono = { version = "0.4.26" }
 clap = { version = "4.3", features = ["derive", "cargo", "string"] }
+fs_extra = "1.3"
 human-panic = "1.1.5"
 once_cell = "1.18.0"
 prettytable-rs = "0.10.0"

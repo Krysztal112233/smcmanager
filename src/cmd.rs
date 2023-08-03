@@ -1,6 +1,7 @@
 use std::{
     fs::{self, File},
     io::{BufWriter, Write},
+    path::PathBuf,
     process::Command,
 };
 
@@ -347,7 +348,108 @@ impl CMD {
             _ => {}
         }
     }
-    pub async fn create(self) {}
+    pub async fn create(self) {
+        let service_name = self.matches.get_one::<String>("name").unwrap();
+        let template_name = self.matches.get_one::<String>("template").unwrap();
+        let workdir = WorkDirectory::new(self.workingdir);
+
+        let templates = workdir
+            .clone()
+            .templates()
+            .into_iter()
+            .find(|ele| ele.name == *template_name);
+
+        let service = workdir
+            .clone()
+            .services()
+            .into_iter()
+            .find(|ele| ele.name == *service_name);
+
+        let mut action_result = (service_name, template_name, false, "".to_string());
+
+        if templates.is_none() {
+            println!("There is no template with the name {}", template_name);
+            return;
+        } else if service.is_some() {
+            println!("There is already searvice with the name {}", service_name);
+            return;
+        }
+
+        let template = templates.unwrap();
+
+        let mut template_path = template.path.clone();
+
+        template_path.pop();
+
+        let mut service_path = workdir.clone().service_directory().clone();
+        service_path.push(service_name);
+
+        fs::create_dir_all(&service_path).expect("Cannot create directory.");
+
+        let strip = |p: PathBuf| {
+            let mut service_d = workdir.clone().service_directory();
+            service_d.pop();
+
+            let p = PathBuf::from(p.strip_prefix(service_d).unwrap());
+            let p = PathBuf::from(p.strip_prefix("templates").unwrap());
+
+            let mut p = p
+                .into_iter()
+                .map(|ele| ele.to_str().unwrap().to_string())
+                .collect::<Vec<_>>();
+            p.remove(0);
+
+            let mut path = PathBuf::new();
+            path.extend(p);
+
+            path
+        };
+
+        for ele in walkdir::WalkDir::new(template_path) {
+            let ele = ele.expect("Cannot visit");
+
+            let striped = strip(ele.clone().into_path().clone());
+
+            let mut target_path = service_path.clone();
+            target_path.push(striped);
+
+            if ele.file_type().is_dir() {
+                fs::create_dir_all(target_path).expect("Cannot create directory");
+            } else if ele.file_type().is_file() {
+                fs_extra::file::copy(ele.path(), target_path, &fs_extra::file::CopyOptions::new())
+                    .expect("Cannot copy file");
+            } else {
+                continue;
+            }
+
+            action_result.2 = true
+        }
+
+        if self.quite {
+            return;
+        }
+
+        let result = if self.json {
+            serde_json::to_string_pretty(&action_result).expect("Cannot serialized into json")
+        } else {
+            let mut table = Table::new();
+            table.set_titles(row![
+                "Service Name",
+                "Template Name",
+                "Result",
+                "Infomation"
+            ]);
+            table.add_row(row![
+                action_result.0,
+                action_result.1,
+                action_result.2,
+                action_result.3
+            ]);
+            table.to_string()
+        };
+
+        println!("{}", result)
+    }
     pub async fn delete(self) {}
     pub async fn init(self) {
         let mut cmd = Command::new("bash");
