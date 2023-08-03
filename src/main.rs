@@ -79,7 +79,11 @@ fn cmd() -> Command {
                     arg!(-n --name <NAME> "Service name."),
                 ]),
         )
-        .subcommand(Command::new("delete").about("Delete a service if it's not running."))
+        .subcommand(
+            Command::new("delete")
+                .about("Delete a service if it's not running.")
+                .args([arg!(-n --name <NAME> "Service name.")]),
+        )
         .subcommand(
             Command::new("init").about("Init programs. It will download templates from github."),
         )

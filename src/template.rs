@@ -1,7 +1,6 @@
 use serde::Serialize;
 use std::{
-    fs::{self, File},
-    io::{BufReader, Read},
+    fs::{self},
     path::PathBuf,
 };
 

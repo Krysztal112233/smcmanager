@@ -10,7 +10,7 @@ use prettytable::{row, Table};
 
 use crate::{
     manifest::ManifestContent,
-    service::{ServiceInformation, ServiceStatus, StartResult},
+    service::{ServiceInformation, ServiceStatus, StartResult, StopResult},
     work::WorkDirectory,
 };
 
@@ -450,7 +450,56 @@ impl CMD {
 
         println!("{}", result)
     }
-    pub async fn delete(self) {}
+    pub async fn delete(self) {
+        let service_name = self.matches.get_one::<String>("name").unwrap().to_owned();
+        let workdir = WorkDirectory::new(self.workingdir);
+        let services = workdir.services().clone();
+        let service = services.into_iter().find(|ele| ele.name == service_name);
+
+        let mut action_result = (service_name, false, "".to_string());
+
+        if service.is_none() {
+            action_result.2 = "No such service found.".to_string()
+        } else if let Some(service) = service {
+            let service = service.update_status().await;
+
+            let stopped = match service.status {
+                ServiceStatus::Start => match service.stop().await {
+                    Ok(result) => match result {
+                        StopResult::StopFailed(ecode) => (false, ecode, "Stop failed".to_string()),
+                        StopResult::PostStopFailed(ecode) => {
+                            (false, ecode, "Post-stop failed".to_string())
+                        }
+                        _ => (true, 0, String::new()),
+                    },
+                    Err(_) => (false, -1, String::new()),
+                },
+                _ => (true, 0, String::new()),
+            };
+
+            action_result.1 = stopped.0;
+            action_result.2 = if stopped.0 == true {
+                format!("Stop succeed!")
+            } else {
+                format!("{},script exit code is {}", stopped.2, stopped.1)
+            }
+        }
+
+        if self.quite {
+            return;
+        }
+
+        let result = if self.json {
+            serde_json::to_string_pretty(&action_result).expect("Cannot serialized into json")
+        } else {
+            let mut table = Table::new();
+            table.set_titles(row!["Service Name", "Status", "Infomation"]);
+            table.add_row(row![action_result.0, action_result.1, action_result.2]);
+            table.to_string()
+        };
+        print!("{}", result)
+    }
+
     pub async fn init(self) {
         let mut cmd = Command::new("bash");
 

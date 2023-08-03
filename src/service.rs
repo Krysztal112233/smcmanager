@@ -1,8 +1,7 @@
 use core::fmt;
 use std::{
     fmt::{Display, Formatter},
-    fs::File,
-    io::{BufReader, Read},
+    fs::{self},
     path::PathBuf,
     process::ExitCode,
 };
@@ -28,7 +27,7 @@ pub enum ServiceStatus {
 
 impl Display for ServiceStatus {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{:?}", self)
     }
 }
 
@@ -44,15 +43,13 @@ impl ServiceInformation {
         T: Into<PathBuf> + Clone,
     {
         let path: PathBuf = path.into();
-        let file_reader = BufReader::new(File::open(path.clone())?);
 
-        let mut file_content = String::new();
-        file_reader.buffer().read_to_string(&mut file_content)?;
+        let file_content = fs::read_to_string(&path)?;
 
-        let template = toml::from_str::<ManifestContent>(&file_content)?;
+        let manifest = toml::from_str::<ManifestContent>(&file_content)?;
 
         Ok(ServiceInformation {
-            name: template.name.clone(),
+            name: manifest.name.clone(),
             ..Default::default()
         })
     }
@@ -138,7 +135,7 @@ impl ServiceInformation {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum StopResult {
     Success,
     StopFailed(i32),
